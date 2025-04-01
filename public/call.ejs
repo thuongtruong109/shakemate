@@ -8,9 +8,13 @@
             type="text/javascript"
         ></script>
         <script
-            src="https://cdn.tiny.cloud/1/4u3y1qnz6drcugojz6fq4ll0epw682eqntfl591k30la1jsd/tinymce/6/tinymce.min.js"
+            src="https://cdn.tiny.cloud/1/yg8ypnmsimphwru1ptnqnz7mhxhsq57c9fdakdvxbim16c8l/tinymce/6/tinymce.min.js"
             referrerpolicy="origin"
         ></script>
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+        />
     </head>
     <body>
         <div class="join">
@@ -45,8 +49,8 @@
                 >
                     <img
                         src="/assets/img/camera-slash.svg"
-                        width="32px"
-                        height="32px"
+                        width="20px"
+                        height="20px"
                         alt="camera-off"
                     />
                 </button>
@@ -57,6 +61,14 @@
                     <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     Leave
                 </button>
+                <button
+                    id="whiteboard-btn"
+                    class="btn btn-primary px-4 py-2"
+                    title="Open Whiteboard"
+                >
+                    <i class="fa-solid fa-chalkboard me-2"></i>
+                    Whiteboard
+                </button>
                 <button class="toggle-chat button-38">
                     <span style="display: none">⚫</span>
                     <i class="fa-solid fa-message"></i>
@@ -64,11 +76,16 @@
             </div>
             <div class="chat" style="display: none">
                 <div class="chat-heading">
-                    <h4>Messages in the call</h4>
+                    <h4>Chat</h4>
                     <i class="fa-solid fa-xmark chat-heading-close"></i>
                 </div>
                 <div class="chat-content"></div>
                 <form>
+                    <!-- Modal to show enlarged image -->
+                    <div id="imageModal" class="image-modal">
+                        <span class="close-modal">&times;</span>
+                        <img class="modal-content" id="fullImage" />
+                    </div>
                     <div id="upload_widget" class="cloudinary-button upload-btn">
                         <img src="/assets/img/upload.png" width="28px" height="28px" alt="upload" />
                     </div>
@@ -83,6 +100,13 @@
                     </button>
                 </form>
             </div>
+            <!-- Room ID display -->
+            <div class="room-id-container">
+                <div class="box">Room ID: <span id="room-id"></span></div>
+                <div class="box">
+                    Call Duration: <span id="timer" class="text-warning">00:00:00</span>
+                </div>
+            </div>
         </div>
     </body>
     <script src="/assets/js/video-grid.js"></script>
@@ -90,6 +114,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.1/js.cookie.min.js"></script>
     <script>
         const roomId = '<%=roomId %>';
+        document.getElementById('room-id').textContent = roomId;
+        document.getElementById('whiteboard-btn').onclick = () => {
+            // Redirect to a shared whiteboard session for the room
+            window.open(`https://excalidraw.com/#room=${roomId}&collaborate=true`, '_blank');
+        };
     </script>
     <script src="/assets/js/media.js"></script>
     <script src="/assets/js/call.js"></script>

@@ -24,6 +24,7 @@
         "lint:fix": "eslint src/**/*.ts --fix"
     },
     "dependencies": {
+        "@fastify/cookie": "^8.3.0",
         "@fastify/express": "^2.3.0",
         "@fastify/static": "^6.6.0",
         "@fastify/view": "^7.3.0",

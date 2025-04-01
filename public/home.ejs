@@ -13,11 +13,12 @@
     <body>
         <div class="home">
             <h2>
-                <img src="/icons/icon-36x36.png" alt="logo" />
+                <img src="/icons/favicon.png" />
                 WELCOME TO SHAKEMATE
             </h2>
             <form>
                 <input id="room-id" type="text" placeholder="Enter room name" required />
+                <input id="room-password" type="password" placeholder="Enter password" required />
                 <button id="create-room" class="button-38" type="submit">
                     <i class="fa-solid fa-circle-plus"></i>
                     Create Room
@@ -27,12 +28,35 @@
     </body>
     <script>
         document.querySelector('#create-room').onclick = async (e) => {
-            const roomID = document.querySelector('#room-id').value;
-            if (!roomID) return;
             e.preventDefault();
-            const response = await fetch(`/room/${roomID}`, { method: 'POST' });
+
+            const roomID = document.querySelector('#room-id').value;
+            const password = document.querySelector('#room-password').value;
+
+            if (!roomID || !password) {
+                alert('Room name and password cannot be empty.');
+                return;
+            }
+
+            const roomRegex = /^[A-Za-z][A-Za-z0-9 ]{4,19}$/;
+            if (!roomRegex.test(roomID)) {
+                alert(
+                    'Room name must be between 5 and 20 characters, only letters, numbers, and spaces.'
+                );
+                return;
+            }
+
+            const response = await fetch(`/room/${roomID}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+
             const responseJSON = await response.json();
+
             if (response.ok) {
+                document.cookie = `room_${roomID}_password=${encodeURIComponent(password)}; path=/; secure; HttpOnly`;
+
                 window.location.href = `/room/${roomID}?k=${responseJSON.secretKey}`;
             } else {
                 alert(responseJSON.message);
