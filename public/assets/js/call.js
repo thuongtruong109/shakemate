@@ -31,6 +31,39 @@ const chatDrawer = document.querySelector('.chat');
 
 let messageSound = new Audio('/assets/audio/message.mp3');
 
+// Call timer variables
+let callStartTime = null;
+let timerInterval = null;
+
+/**
+ * Start the call timer
+ */
+const startCallTimer = () => {
+    callStartTime = Date.now();
+    timerInterval = setInterval(() => {
+        const elapsed = Date.now() - callStartTime;
+        const hours = Math.floor(elapsed / 3600000);
+        const minutes = Math.floor((elapsed % 3600000) / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }, 1000);
+};
+
+/**
+ * Stop the call timer
+ */
+const stopCallTimer = () => {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    callStartTime = null;
+};
+
 navigator.getUserMedia =
     navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
@@ -176,7 +209,11 @@ const handleCallControl = (stream, ws) => {
     document
         .querySelectorAll('.toggle-video')
         .forEach((el) => (el.onclick = () => toggleVideo(stream, sendMessageCamera(ws))));
-    document.querySelector('.leave-room').onclick = () => (window.location.href = '/');
+    document.querySelector('.leave-room').onclick = () => {
+        // Stop the call timer when leaving the room
+        stopCallTimer();
+        window.location.href = '/';
+    };
 };
 
 const start = () => {
@@ -186,6 +223,8 @@ const start = () => {
             cameraGrid.addCamera('my-camera', 'You', true);
             cameraGrid.stream('my-camera', stream);
             onSuccess(stream);
+            // Start the call timer when the call begins
+            startCallTimer();
         },
         (err) => console.error(err)
     );
@@ -263,62 +302,79 @@ const isURL = (str) => {
 function handleSendMessage(ws) {
     document.querySelector('.chat form').onsubmit = (e) => {
         e.preventDefault();
-        const message = tinyMCE.activeEditor.getContent()
+        const message = tinyMCE.activeEditor.getContent();
         if (message !== '') {
             createMessageSection(YOU, message);
             ws.send(JSON.stringify({ type: 'message', message }));
-            tinymce.activeEditor.setContent("");
+            tinymce.activeEditor.setContent('');
         }
     };
 
     document.querySelector('.chat form .send-btn').onclick = (e) => {
         e.preventDefault();
-        const message = tinyMCE.activeEditor.getContent()
+        const message = tinyMCE.activeEditor.getContent();
         if (message !== '') {
             createMessageSection(YOU, message);
             ws.send(JSON.stringify({ type: 'message', message }));
-            tinymce.activeEditor.setContent("");
+            tinymce.activeEditor.setContent('');
         }
-    }
+    };
 
-    const cloudName = "hzxyensd5"; //dwfzid0gk
-    const uploadPreset = "aoh4fpwm"; //ml_test
+    const cloudName = 'hzxyensd5'; //dwfzid0gk
+    const uploadPreset = 'aoh4fpwm'; //ml_test
 
     const myWidget = cloudinary.createUploadWidget(
-    {
-        cloudName: cloudName,
-        uploadPreset: uploadPreset,
-    },
+        {
+            cloudName: cloudName,
+            uploadPreset: uploadPreset,
+        },
         (error, result) => {
-            if (!error && result && result.event === "success") {
-                createMessageSection(YOU, "<img src='" + result.info.secure_url + "' alt='upload' width='100px' height='100px' />");
+            if (!error && result && result.event === 'success') {
+                createMessageSection(
+                    YOU,
+                    "<img src='" +
+                        result.info.secure_url +
+                        "' alt='upload' width='100px' height='100px' />"
+                );
                 myWidget.close();
-                ws.send(JSON.stringify({ type: 'message', message: "<img src='" + result.info.secure_url + "' alt='upload' width='100px' height='100px' />" }));
+                ws.send(
+                    JSON.stringify({
+                        type: 'message',
+                        message:
+                            "<img src='" +
+                            result.info.secure_url +
+                            "' alt='upload' width='100px' height='100px' />",
+                    })
+                );
             }
         }
     );
 
-    document.getElementById("upload_widget").addEventListener(
-        "click", function () {
+    document.getElementById('upload_widget').addEventListener(
+        'click',
+        function () {
             myWidget.open();
         },
         false
     );
-};
+}
 
 document.querySelector('.call .control .copy-link').onclick = () => {
     const textToCopy = window.location.href;
-    navigator.clipboard.writeText(textToCopy).then(function() {
-        alert('Copied to clipboard');
-    }).catch(function(error) {
-        alert('Failed to copy: ' + error);
-    });
-}
+    navigator.clipboard
+        .writeText(textToCopy)
+        .then(function () {
+            alert('Copied to clipboard');
+        })
+        .catch(function (error) {
+            alert('Failed to copy: ' + error);
+        });
+};
 
 tinymce.init({
-    selector: ".chat-form-input",
-    plugins: "emoticons",
-    toolbar: "emoticons",
-    toolbar_location: "bottom",
+    selector: '.chat-form-input',
+    plugins: 'emoticons',
+    toolbar: 'emoticons',
+    toolbar_location: 'bottom',
     menubar: false,
 });
