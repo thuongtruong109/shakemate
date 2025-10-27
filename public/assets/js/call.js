@@ -31,6 +31,39 @@ const chatDrawer = document.querySelector('.chat');
 
 let messageSound = new Audio('/assets/audio/message.mp3');
 
+// Call timer variables
+let callStartTime = null;
+let timerInterval = null;
+
+/**
+ * Start the call timer
+ */
+const startCallTimer = () => {
+    callStartTime = Date.now();
+    timerInterval = setInterval(() => {
+        const elapsed = Date.now() - callStartTime;
+        const hours = Math.floor(elapsed / 3600000);
+        const minutes = Math.floor((elapsed % 3600000) / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }, 1000);
+};
+
+/**
+ * Stop the call timer
+ */
+const stopCallTimer = () => {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    callStartTime = null;
+};
+
 navigator.getUserMedia =
     navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
@@ -185,7 +218,11 @@ const handleCallControl = (stream, ws) => {
     document
         .querySelectorAll('.toggle-video')
         .forEach((el) => (el.onclick = () => toggleVideo(stream, sendMessageCamera(ws))));
-    document.querySelector('.leave-room').onclick = () => (window.location.href = '/');
+    document.querySelector('.leave-room').onclick = () => {
+        // Stop the call timer when leaving the room
+        stopCallTimer();
+        window.location.href = '/';
+    };
 };
 
 const start = () => {
@@ -195,6 +232,8 @@ const start = () => {
             cameraGrid.addCamera('my-camera', 'You', true);
             cameraGrid.stream('my-camera', stream);
             onSuccess(stream);
+            // Start the call timer when the call begins
+            startCallTimer();
         },
         (err) => console.error(err)
     );
@@ -292,13 +331,19 @@ function handleSendMessage(ws) {
         }
     };
 
+<<<<<<< HEAD
     const cloudName = 'duswzrr6s'; //dwfzid0gk
     const uploadPreset = 'ml_default'; //ml_test
+=======
+    const cloudName = 'hzxyensd5'; //dwfzid0gk
+    const uploadPreset = 'aoh4fpwm'; //ml_test
+>>>>>>> main
 
     const myWidget = cloudinary.createUploadWidget(
         {
             cloudName: cloudName,
             uploadPreset: uploadPreset,
+<<<<<<< HEAD
             sources: ['local', 'url', 'camera'], // Allows downloading files from device, URL, camera
             resourceType: 'auto', // Automatically recognizes file types (photos, videos, documents)
             multiple: false, // Allows selecting only 1 file at a time
@@ -325,6 +370,27 @@ function handleSendMessage(ws) {
 
                 // Send file via WebSocket
                 ws.send(JSON.stringify({ type: 'message', message: messageContent }));
+=======
+        },
+        (error, result) => {
+            if (!error && result && result.event === 'success') {
+                createMessageSection(
+                    YOU,
+                    "<img src='" +
+                        result.info.secure_url +
+                        "' alt='upload' width='100px' height='100px' />"
+                );
+                myWidget.close();
+                ws.send(
+                    JSON.stringify({
+                        type: 'message',
+                        message:
+                            "<img src='" +
+                            result.info.secure_url +
+                            "' alt='upload' width='100px' height='100px' />",
+                    })
+                );
+>>>>>>> main
             }
         }
     );
@@ -337,6 +403,21 @@ function handleSendMessage(ws) {
         false
     );
 }
+<<<<<<< HEAD
+=======
+
+document.querySelector('.call .control .copy-link').onclick = () => {
+    const textToCopy = window.location.href;
+    navigator.clipboard
+        .writeText(textToCopy)
+        .then(function () {
+            alert('Copied to clipboard');
+        })
+        .catch(function (error) {
+            alert('Failed to copy: ' + error);
+        });
+};
+>>>>>>> main
 
 document.querySelector('.call .control .copy-link').onclick = () => {
     // Lấy URL hiện tại
@@ -363,6 +444,7 @@ tinymce.init({
     toolbar_location: 'bottom',
     menubar: false,
 });
+<<<<<<< HEAD
 
 // call duration
 
@@ -414,3 +496,5 @@ document.getElementById('imageModal').onclick = function (event) {
         this.style.display = 'none';
     }
 };
+=======
+>>>>>>> main
