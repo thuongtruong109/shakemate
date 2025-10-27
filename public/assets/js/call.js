@@ -31,6 +31,39 @@ const chatDrawer = document.querySelector('.chat');
 
 let messageSound = new Audio('/assets/audio/message.mp3');
 
+// Call timer variables
+let callStartTime = null;
+let timerInterval = null;
+
+/**
+ * Start the call timer
+ */
+const startCallTimer = () => {
+    callStartTime = Date.now();
+    timerInterval = setInterval(() => {
+        const elapsed = Date.now() - callStartTime;
+        const hours = Math.floor(elapsed / 3600000);
+        const minutes = Math.floor((elapsed % 3600000) / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }, 1000);
+};
+
+/**
+ * Stop the call timer
+ */
+const stopCallTimer = () => {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    callStartTime = null;
+};
+
 navigator.getUserMedia =
     navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
 
@@ -94,14 +127,18 @@ const handleCloseCall = (peerId) => {
 const onSuccess = (stream) => {
     const peer = new Peer();
     peer.on('open', function (peerId) {
+        // Check if a website uses HTTPS
         const isHttps = location.protocol.includes('https');
         const ws = new WebSocket(
             `${isHttps ? 'wss' : 'ws'}://${
                 location.host
             }/ws?roomId=${roomId}&peerId=${peerId}&name=${name}`
         );
+        // Save user information
         room.set(peerId, new User({ peerId, name }));
+        // Handle functions like microphone and camera on/off
         handleCallControl(stream, ws);
+        // Handle sending messages in chats.
         handleSendMessage(ws);
         ws.onmessage = ({ data }) => {
             const { type, message } = JSON.parse(data);
@@ -128,10 +165,13 @@ const onSuccess = (stream) => {
                 case 'message': {
                     const { peerId: guestPeerId, value } = message;
                     if (peerId !== guestPeerId) {
+                        // Play message notification sounds
                         messageSound.play();
+                        // Display messages in the interface
                         createMessageSection(room.get(guestPeerId).name, value);
                     }
                     if (chatDrawer.style.display === 'none') {
+                        // If the chat window is hidden, it shows a notification of new messages
                         document.querySelector('.toggle-chat span').style.display = 'block';
                     }
                     break;
@@ -140,7 +180,7 @@ const onSuccess = (stream) => {
                 }
             }
         };
-
+        // Receive calls from others
         peer.on('call', handleAnswer(stream));
     });
 };
@@ -149,6 +189,7 @@ const onSuccess = (stream) => {
  * @param {Object} ws websocket
  * @return {Function(value: Boolean) => void}
  */
+// Create a function that sends a microphone on/off signal via WebSocket.
 const sendMessageMicrophone = (ws) => {
     return (value) => {
         ws.send(JSON.stringify({ type: 'microphone', message: value }));
@@ -159,6 +200,7 @@ const sendMessageMicrophone = (ws) => {
  * @param {Object} ws websocket
  * @return {Function(value: Boolean) => void}
  */
+// Create a function that sends a camera on/off signal via WebSocket.
 const sendMessageCamera = (ws) => {
     return (value) => {
         ws.send(JSON.stringify({ type: 'camera', message: value }));
@@ -176,7 +218,11 @@ const handleCallControl = (stream, ws) => {
     document
         .querySelectorAll('.toggle-video')
         .forEach((el) => (el.onclick = () => toggleVideo(stream, sendMessageCamera(ws))));
-    document.querySelector('.leave-room').onclick = () => (window.location.href = '/');
+    document.querySelector('.leave-room').onclick = () => {
+        // Stop the call timer when leaving the room
+        stopCallTimer();
+        window.location.href = '/';
+    };
 };
 
 const start = () => {
@@ -186,16 +232,20 @@ const start = () => {
             cameraGrid.addCamera('my-camera', 'You', true);
             cameraGrid.stream('my-camera', stream);
             onSuccess(stream);
+            // Start the call timer when the call begins
+            startCallTimer();
         },
         (err) => console.error(err)
     );
 };
 
 document.querySelector('#create-room').onclick = async (e) => {
+    // Get the username from the input field.
     name = document.querySelector('#name').value;
     if (!name) return;
     e.preventDefault();
     Cookies.set('name', name);
+    // Hide the name input interface and show the video call interface.
     document.querySelector('.join').style.display = 'none';
     document.querySelector('.call').style.display = 'block';
     start();
@@ -204,6 +254,7 @@ document.querySelector('#create-room').onclick = async (e) => {
 [document.querySelector('.toggle-chat'), document.querySelector('.chat-heading-close')].forEach(
     (el) =>
         (el.onclick = () => {
+            // Handle hiding/showing the chat box
             if (chatDrawer.style.display === 'flex') {
                 chatDrawer.style.display = 'none';
                 scenary.style.right = '0px';
@@ -216,6 +267,7 @@ document.querySelector('#create-room').onclick = async (e) => {
                 chatDrawer.querySelector('form input').focus();
                 scrollChatSectionToBottom();
             }
+            // Adjust the camera grid
             cameraGrid.resize();
         })
 );
@@ -233,20 +285,18 @@ const scrollChatSectionToBottom = () => {
 };
 
 const createMessageSection = (name, message) => {
-    message.split(/\s+/).forEach((str) => {
-        if (isURL(str)) {
-            message = message.replace(
-                str,
-                `<a target="_blank" rel="noopener noreferrer" href=${str}>${str}</a>`
-            );
-        }
-    });
+    message = message.replace(
+        /<img(.*?)>/g,
+        '<img $1 class="chat-image" style="cursor:pointer; max-width: 100px; max-height: 100px;" />'
+    );
+
     const messageSection = document.createElement('div');
     messageSection.className = 'chat-content-message';
     messageSection.innerHTML = `
         <span><strong>${name}</strong> <span>${getTime()}</span></span>
         <p>${message}</p>
     `;
+
     if (name === YOU) messageSection.classList.add('you');
 
     document.querySelector('.chat-content').appendChild(messageSection);
@@ -263,62 +313,188 @@ const isURL = (str) => {
 function handleSendMessage(ws) {
     document.querySelector('.chat form').onsubmit = (e) => {
         e.preventDefault();
-        const message = tinyMCE.activeEditor.getContent()
+        const message = tinyMCE.activeEditor.getContent();
         if (message !== '') {
             createMessageSection(YOU, message);
             ws.send(JSON.stringify({ type: 'message', message }));
-            tinymce.activeEditor.setContent("");
+            tinymce.activeEditor.setContent('');
         }
     };
 
     document.querySelector('.chat form .send-btn').onclick = (e) => {
         e.preventDefault();
-        const message = tinyMCE.activeEditor.getContent()
+        const message = tinyMCE.activeEditor.getContent();
         if (message !== '') {
             createMessageSection(YOU, message);
             ws.send(JSON.stringify({ type: 'message', message }));
-            tinymce.activeEditor.setContent("");
+            tinymce.activeEditor.setContent('');
         }
-    }
+    };
 
-    const cloudName = "hzxyensd5"; //dwfzid0gk
-    const uploadPreset = "aoh4fpwm"; //ml_test
+<<<<<<< HEAD
+    const cloudName = 'duswzrr6s'; //dwfzid0gk
+    const uploadPreset = 'ml_default'; //ml_test
+=======
+    const cloudName = 'hzxyensd5'; //dwfzid0gk
+    const uploadPreset = 'aoh4fpwm'; //ml_test
+>>>>>>> main
 
     const myWidget = cloudinary.createUploadWidget(
-    {
-        cloudName: cloudName,
-        uploadPreset: uploadPreset,
-    },
+        {
+            cloudName: cloudName,
+            uploadPreset: uploadPreset,
+<<<<<<< HEAD
+            sources: ['local', 'url', 'camera'], // Allows downloading files from device, URL, camera
+            resourceType: 'auto', // Automatically recognizes file types (photos, videos, documents)
+            multiple: false, // Allows selecting only 1 file at a time
+        },
         (error, result) => {
-            if (!error && result && result.event === "success") {
-                createMessageSection(YOU, "<img src='" + result.info.secure_url + "' alt='upload' width='100px' height='100px' />");
+            if (!error && result && result.event === 'success') {
+                const fileUrl = result.info.secure_url;
+                const fileType = result.info.resource_type;
+                const fileName = result.info.original_filename;
+
+                let messageContent = '';
+                if (fileType === 'image') {
+                    messageContent = `<img src="${fileUrl}" alt="upload" width="100px" height="100px" class="chat-image" />`;
+                } else {
+                    const fileExtension = result.info.format
+                        ? `.${result.info.format}`
+                        : fileUrl.split('.').pop().split('?')[0];
+
+                    messageContent = `<a href="${fileUrl}" target="_blank" class="chat-file" download>${fileName}${fileExtension}</a>`;
+                }
+
+                // Show file in chat
+                createMessageSection(YOU, messageContent);
+
+                // Send file via WebSocket
+                ws.send(JSON.stringify({ type: 'message', message: messageContent }));
+=======
+        },
+        (error, result) => {
+            if (!error && result && result.event === 'success') {
+                createMessageSection(
+                    YOU,
+                    "<img src='" +
+                        result.info.secure_url +
+                        "' alt='upload' width='100px' height='100px' />"
+                );
                 myWidget.close();
-                ws.send(JSON.stringify({ type: 'message', message: "<img src='" + result.info.secure_url + "' alt='upload' width='100px' height='100px' />" }));
+                ws.send(
+                    JSON.stringify({
+                        type: 'message',
+                        message:
+                            "<img src='" +
+                            result.info.secure_url +
+                            "' alt='upload' width='100px' height='100px' />",
+                    })
+                );
+>>>>>>> main
             }
         }
     );
 
-    document.getElementById("upload_widget").addEventListener(
-        "click", function () {
+    document.getElementById('upload_widget').addEventListener(
+        'click',
+        function () {
             myWidget.open();
         },
         false
     );
-};
+}
+<<<<<<< HEAD
+=======
 
 document.querySelector('.call .control .copy-link').onclick = () => {
     const textToCopy = window.location.href;
-    navigator.clipboard.writeText(textToCopy).then(function() {
-        alert('Copied to clipboard');
-    }).catch(function(error) {
-        alert('Failed to copy: ' + error);
-    });
-}
+    navigator.clipboard
+        .writeText(textToCopy)
+        .then(function () {
+            alert('Copied to clipboard');
+        })
+        .catch(function (error) {
+            alert('Failed to copy: ' + error);
+        });
+};
+>>>>>>> main
+
+document.querySelector('.call .control .copy-link').onclick = () => {
+    // Lấy URL hiện tại
+    const fullUrl = window.location.href;
+
+    // Cắt phần URL sau &password (nếu có)
+    const baseUrl = fullUrl.split('&password')[0];
+
+    // Sao chép URL mới
+    navigator.clipboard
+        .writeText(baseUrl)
+        .then(function () {
+            alert('Copied to clipboard: ' + baseUrl);
+        })
+        .catch(function (error) {
+            alert('Failed to copy: ' + error);
+        });
+};
 
 tinymce.init({
-    selector: ".chat-form-input",
-    plugins: "emoticons",
-    toolbar: "emoticons",
-    toolbar_location: "bottom",
+    selector: '.chat-form-input',
+    plugins: 'emoticons',
+    toolbar: 'emoticons',
+    toolbar_location: 'bottom',
     menubar: false,
 });
+<<<<<<< HEAD
+
+// call duration
+
+let timerInterval;
+
+const socket = new WebSocket(`ws://${window.location.host}/ws?roomId=${roomId}`);
+
+socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'join_room') {
+        const startTime = new Date(data.message.startTime);
+        startCallTimer(startTime);
+    }
+};
+
+function startCallTimer(startTime) {
+    if (timerInterval) clearInterval(timerInterval); // Clear existing interval
+
+    timerInterval = setInterval(() => {
+        const currentTime = new Date();
+        const elapsedTime = Math.floor((currentTime - startTime) / 1000);
+
+        const hours = String(Math.floor(elapsedTime / 3600)).padStart(2, '0');
+        const minutes = String(Math.floor((elapsedTime % 3600) / 60)).padStart(2, '0');
+        const seconds = String(elapsedTime % 60).padStart(2, '0');
+
+        document.getElementById('timer').textContent = `${hours}:${minutes}:${seconds}`;
+    }, 1000);
+}
+
+// Open image when clicked
+document.addEventListener('click', function (event) {
+    if (event.target.tagName === 'IMG' && event.target.closest('.chat-content-message')) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('fullImage');
+
+        modal.style.display = 'flex';
+        modalImg.src = event.target.src;
+    }
+});
+
+// Close modal when close button is pressed or outside image
+document.querySelector('.close-modal').onclick = function () {
+    document.getElementById('imageModal').style.display = 'none';
+};
+
+document.getElementById('imageModal').onclick = function (event) {
+    if (event.target === this) {
+        this.style.display = 'none';
+    }
+};
+=======
+>>>>>>> main

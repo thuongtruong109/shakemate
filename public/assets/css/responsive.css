@@ -17,4 +17,15 @@
     .home input {
         padding: 12px;
     }
+
+    .call-timer {
+        top: 10px;
+        left: 10px;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+
+    .call-timer i {
+        font-size: 1rem;
+    }
 }
